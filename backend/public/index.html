@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSI Divergence Trading Bot Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00d4ff, #ff6b6b);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #a0a0a0;
+            font-weight: 400;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.warning {
+            background: #ffaa00;
+        }
+
+        .status-indicator.error {
+            background: #ff4757;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+            color: #00d4ff;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+        }
+
+        .metric-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .metric-value.positive {
+            color: #00ff88;
+        }
+
+        .metric-value.negative {
+            color: #ff4757;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        .divergence-list {
+            max-height: 350px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+
+        .trading-pairs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .pair-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .pair-button.active {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+        }
+
+        .pair-button:hover {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            transform: translateY(-2px);
+        }
+
+        .timeframe-selection {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .timeframe-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #a0a0a0;
+            font-weight: 500;
+        }
+
+        .timeframe-label i {
+            color: #00d4ff;
+        }
+
+        .timeframe-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .timeframe-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 50px;
+        }
+
+        .timeframe-button.active {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .timeframe-button:hover {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100px;
+            color: #a0a0a0;
+        }
+
+        .loading::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #00d4ff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .metric-value.updated {
+            animation: bounceIn 0.6s ease;
+        }
+
+        /* Manual Trading Styles */
+        .suggestions-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .suggestion-item {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .suggestion-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .suggestion-pair {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #00d4ff;
+        }
+
+        .suggestion-action {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .suggestion-action.buy {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .suggestion-action.sell {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+
+        .suggestion-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .suggestion-detail {
+            text-align: center;
+        }
+
+        .suggestion-detail-label {
+            display: block;
+            font-size: 0.8rem;
+            color: #a0a0a0;
+            margin-bottom: 2px;
+        }
+
+        .suggestion-detail-value {
+            font-weight: 600;
+            color: white;
+        }
+
+        .trades-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .trade-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .trade-item:last-child {
+            border-bottom: none;
+        }
+
+        .trade-basic-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .trade-pair-action {
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .trade-time {
+            font-size: 0.8rem;
+            color: #a0a0a0;
+        }
+
+        .trade-pnl {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .trade-pnl.positive {
+            color: #00ff88;
+        }
+
+        .trade-pnl.negative {
+            color: #ff4757;
+        }
+
+        .action-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            color: white;
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .success-button {
+            background: linear-gradient(45deg, #00ff88, #00cc6a) !important;
+        }
+
+        .success-button:hover {
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3) !important;
+        }
+
+        .cancel-button {
+            background: linear-gradient(45deg, #ff4757, #ff3742) !important;
+        }
+
+        .cancel-button:hover {
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3) !important;
+        }
+
+        .fibonacci-levels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .fib-level {
+            text-align: center;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .fib-level-name {
+            font-size: 0.8rem;
+            color: #ffa726;
+            margin-bottom: 4px;
+        }
+
+        .fib-level-price {
+            font-weight: 600;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .no-trades {
+            text-align: center;
+            padding: 30px;
+            color: #a0a0a0;
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #a0a0a0;
+            font-style: italic;
+        }
+
+        .expired-suggestion {
+            opacity: 0.6;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .high-strength {
+            border-left: 3px solid #00ff88;
+        }
+
+        .medium-strength {
+            border-left: 3px solid #ffa726;
+        }
+
+        .low-strength {
+            border-left: 3px solid #ff4757;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+
+        .alert.success {
+            background: rgba(0, 255, 136, 0.1);
+            border-left-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .alert.warning {
+            background: rgba(255, 170, 0, 0.1);
+            border-left-color: #ffaa00;
+            color: #ffaa00;
+        }
+
+        .alert.error {
+            background: rgba(255, 71, 87, 0.1);
+            border-left-color: #ff4757;
+            color: #ff4757;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .timeframe-selection {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .timeframe-buttons {
+                justify-content: center;
+            }
+            
+            .trading-pairs {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-chart-line"></i> RSI Divergence Trading Bot</h1>
+            <p>Real-time crypto trading with advanced RSI divergence detection</p>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-indicator" id="redisStatus"></div>
+                <span>Redis Connection</span>
+            </div>
+            <div class="status-item">
+                <div class="status-indicator" id="bingxStatus"></div>
+                <span>BingX API</span>
+            </div>
+            <div class="status-item">
+                <div class="status-indicator" id="engineStatus"></div>
+                <span>Divergence Engine</span>
+            </div>
+            <div class="status-item">
+                <span id="uptime">Uptime: --</span>
+            </div>
+        </div>
+
+        <!-- Trading Pairs Selection -->
+        <div class="trading-pairs">
+            <button class="pair-button active" data-pair="BTC-USDT">BTC-USDT</button>
+            <button class="pair-button" data-pair="ETH-USDT">ETH-USDT</button>
+            <button class="pair-button" data-pair="all">All Pairs</button>
+        </div>
+
+        <!-- Timeframe Selection -->
+        <div class="timeframe-selection">
+            <div class="timeframe-label">
+                <i class="fas fa-clock"></i>
+                <span>Timeframe:</span>
+            </div>
+            <div class="timeframe-buttons">
+                <button class="timeframe-button" data-timeframe="5m">5m</button>
+                <button class="timeframe-button active" data-timeframe="1h">1h</button>
+                <button class="timeframe-button" data-timeframe="4h">4h</button>
+                <button class="timeframe-button" data-timeframe="1d">1d</button>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid">
+            <!-- Portfolio Overview -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Portfolio Overview</h3>
+                    <i class="fas fa-wallet card-icon"></i>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Account Balance</span>
+                    <span class="metric-value" id="accountBalance">$10,000.00</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Daily P&L</span>
+                    <span class="metric-value" id="dailyPnL">$0.00</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Open Positions</span>
+                    <span class="metric-value" id="openPositions">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Risk Exposure</span>
+                    <span class="metric-value" id="riskExposure">0%</span>
+                </div>
+            </div>
+
+            <!-- Current RSI Values -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Current RSI Values</h3>
+                    <i class="fas fa-tachometer-alt card-icon"></i>
+                </div>
+                <div id="rsiValues" class="loading">Loading RSI data...</div>
+            </div>
+
+            <!-- Recent Divergences -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Divergences</h3>
+                    <i class="fas fa-signal card-icon"></i>
+                </div>
+                <div id="divergenceList" class="divergence-list loading">Loading divergences...</div>
+            </div>
+
+            <!-- Performance Statistics -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Performance Stats</h3>
+                    <i class="fas fa-chart-bar card-icon"></i>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total Signals</span>
+                    <span class="metric-value" id="totalSignals">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Bullish Signals</span>
+                    <span class="metric-value positive" id="bullishSignals">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Bearish Signals</span>
+                    <span class="metric-value negative" id="bearishSignals">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Strength</span>
+                    <span class="metric-value" id="avgStrength">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- RSI Chart -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">RSI Chart - <span id="chartPair">BTC-USDT</span></h3>
+                <i class="fas fa-chart-area card-icon"></i>
+            </div>
+            <div class="chart-container">
+                <canvas id="rsiChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Manual Trading Assistant -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Manual Trading Assistant</h3>
+                <i class="fas fa-hand-paper card-icon"></i>
+            </div>
+            
+            <!-- Trading Suggestions -->
+            <div class="trading-suggestions" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4 style="margin: 0; color: #00d4ff;">Active Trading Suggestions</h4>
+                    <button id="refreshSuggestionsBtn" class="action-button" style="padding: 8px 16px;">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                
+                <div id="tradingSuggestionsList" class="suggestions-list">
+                    <div class="loading">Loading trading suggestions...</div>
+                </div>
+            </div>
+
+            <!-- Manual Trade Execution Panel -->
+            <div class="manual-trade-panel" style="margin-bottom: 20px; display: none;" id="manualTradePanel">
+                <div class="card-header" style="margin-bottom: 15px;">
+                    <h4 style="margin: 0; color: #00ff88;">Execute Manual Trade</h4>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="trade-details">
+                        <div class="metric">
+                            <span class="metric-label">Pair</span>
+                            <span class="metric-value" id="tradePair">-</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Action</span>
+                            <span class="metric-value" id="tradeAction">-</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Entry Price</span>
+                            <span class="metric-value" id="tradeEntryPrice">-</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Stop Loss</span>
+                            <span class="metric-value" id="tradeStopLoss">-</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Take Profit</span>
+                            <span class="metric-value" id="tradeTakeProfit">-</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Risk/Reward</span>
+                            <span class="metric-value" id="tradeRiskReward">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="trade-controls">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; color: #a0a0a0; font-size: 0.9rem;">Execution Type:</label>
+                            <select id="executionType" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; background: rgba(255,255,255,0.1); color: white;">
+                                <option value="PAPER">Paper Trading</option>
+                                <option value="COPY">Copy to Exchange</option>
+                                <option value="LIVE">Live Trading</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; color: #a0a0a0; font-size: 0.9rem;">Position Size:</label>
+                            <input type="number" id="customPositionSize" step="0.01" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; background: rgba(255,255,255,0.1); color: white;">
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; color: #a0a0a0; font-size: 0.9rem;">Notes:</label>
+                            <textarea id="tradeNotes" placeholder="Add your analysis notes..." style="width: 100%; height: 60px; padding: 8px; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; background: rgba(255,255,255,0.1); color: white; resize: vertical;"></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <button id="executeTradeBtn" class="action-button success-button" style="flex: 1;">
+                                <i class="fas fa-play"></i> Execute Trade
+                            </button>
+                            <button id="cancelTradeBtn" class="action-button cancel-button" style="flex: 1;">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technical Analysis Helper -->
+            <div class="technical-analysis-helper" style="margin-bottom: 20px;">
+                <div class="card-header" style="margin-bottom: 15px;">
+                    <h4 style="margin: 0; color: #ffa726;">Technical Analysis</h4>
+                </div>
+                
+                <div id="technicalAnalysis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="metric">
+                        <span class="metric-label">RSI</span>
+                        <span class="metric-value" id="currentRSI">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">ADX</span>
+                        <span class="metric-value" id="currentADX">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Trend</span>
+                        <span class="metric-value" id="currentTrend">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Volatility</span>
+                        <span class="metric-value" id="currentVolatility">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trading Performance -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Manual Trading Performance</h3>
+                <i class="fas fa-chart-line card-icon"></i>
+            </div>
+            
+            <div class="performance-metrics" style="margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div class="metric">
+                        <span class="metric-label">Total Trades</span>
+                        <span class="metric-value" id="totalTrades">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Win Rate</span>
+                        <span class="metric-value" id="winRate">0%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total P&L</span>
+                        <span class="metric-value" id="totalPnL">$0.00</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Current Balance</span>
+                        <span class="metric-value" id="currentBalance">$10,000</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Trades -->
+            <div class="recent-trades">
+                <div class="card-header" style="margin-bottom: 15px;">
+                    <h4 style="margin: 0;">Recent Manual Trades</h4>
+                </div>
+                <div id="manualTradesList" class="trades-list">
+                    <div class="no-trades">No manual trades yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+    <script>
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AdvancedTradingDashboard();
+        });
+    </script>
+</body>
+</html>
